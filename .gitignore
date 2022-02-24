@@ -1,0 +1,5 @@
+*.o
+spi_test_tool
+spi-stm32
+.vscode/
+docs
