@@ -68,6 +68,12 @@ void free_ptr(size_t n, ...)
 	}
 }
 
+/**
+ * @brief handle error
+ * 
+ * @param s message
+ * 
+ */
 static void pabort(const char *s)
 {
 	if (errno != 0) {
@@ -147,6 +153,8 @@ int main(int argc, char *argv[])
 		spi_close(spi);
 		pabort("spi_write_read() error!");
 	}
+
+	fprintf(stdout, "Receive data: 0x%x\n", rx_buf[0]);
 
 	spi_close(spi);
 
