@@ -25,6 +25,10 @@
 void help(void);
 void free_ptr(size_t n, ...);
 
+uint8_t device[ARRAY_SIZE(SPI_DEVICE_0)];
+uint8_t tx_buf[SPI_MAX_TX_MAX_LEN];
+uint8_t rx_buf[SPI_MAX_RX_MAX_LEN];
+
 /**
  * @brief help message
  *
@@ -33,11 +37,13 @@ void help(void)
 {
     fprintf(stdout,
 			"Usage: ./spi-stm32 -d [spi device node] -t [transmit data]\n"
-            "-d, --device: device node name\n"
-            "-t, --transmit: hex value to be transmited in one byte\n"
-            "-v, --version: show programe version\n"
-            "-h, --help: show help string\n"
-            "ex: ./spi_test_tool -d 1 -t 0x01\n");
+            "  -d, --device: device node name\n"
+            "  -t, --transmit: hex value to be transmited in one byte\n"
+            "  -v, --version: show programe version\n"
+            "  -h, --help: show help string\n"
+            "  ex: ./spi_test_tool -d 1 -t 0x01\n");
+
+	exit(0);
 }
 
 /**
@@ -47,7 +53,7 @@ void help(void)
  * @param ... pointers need to be free
  * 
  * usage: free_ptr(2, tx_buf, rx_buf)
- * state: throw-out
+ * state: deprecate
  */
 void free_ptr(size_t n, ...)
 {
@@ -62,29 +68,29 @@ void free_ptr(size_t n, ...)
 	}
 }
 
-int main(int argc, char *argv[])
+/**
+ * @brief handle error
+ * 
+ * @param s message
+ * 
+ */
+static void pabort(const char *s)
 {
-	spi_t *spi = NULL;
-	int ret = 0;
+	if (errno != 0) {
+		perror(s);
+	} else {
+		fprintf(stderr, "%s\n", s);
+	}
+
+	exit(0);
+}
+
+static void parse_opts(int argc, char *argv[])
+{
 	int get_c = 0;
 	const char *opstring = "d:t:vh";
 
-	autofree uint8_t *tx_buf = malloc(sizeof(uint8_t) * SPI_MAX_TX_MAX_LEN);
-	if (tx_buf == NULL) {
-		fprintf(stderr, "tx_buf memory allocate error: %s\n", strerror(errno));
-	}
-
-	autofree uint8_t *rx_buf = malloc(sizeof(uint8_t) * SPI_MAX_RX_MAX_LEN);
-	if (rx_buf == NULL) {
-		fprintf(stderr, "rx_buf memory allocate error: %s\n", strerror(errno));
-	}
-	
-	autofree uint8_t *spi_bus = malloc(sizeof(uint8_t) * ARRAY_SIZE(SPI_DEVICE_0));
-	if (spi_bus == NULL) {
-		fprintf(stderr, "rx_buf memory allocate error: %s\n", strerror(errno));
-	}
-
-	static struct option opts[] = {
+	static const struct option opts[] = {
 		{"device", required_argument, NULL, 'd'},
 		{"transmit", required_argument, NULL, 't'},
 		{"version", no_argument, NULL, 'v'},
@@ -97,16 +103,15 @@ int main(int argc, char *argv[])
 		case 'd':
 			switch (optarg[0]) {
 				case '0':
-					strcpy(spi_bus, SPI_DEVICE_0);
+					strcpy(device, SPI_DEVICE_0);
 					break;
 
 				case '1':
-					strcpy(spi_bus, SPI_DEVICE_1);
+					strcpy(device, SPI_DEVICE_1);
 					break;
 
 				default:
-					fprintf(stdout, "SPI bus input error! %d\n", -EINVAL);
-					goto exit;
+					pabort("SPI bus input error!");
 			}
 			break;
 
@@ -116,46 +121,42 @@ int main(int argc, char *argv[])
 		
 		case 'v':
 			fprintf(stdout, "version: %s\n", VERSION);
-			goto exit;
+			help();
 
 		case 'h':
 			help();
-			goto exit;
-
-		case '?':
-			fprintf(stderr, "Invalid argument! %d\n", -EINVAL);
-			help();
-			goto exit;
 
 		default:
 			fprintf(stderr, "Invalid argument! %d\n", -EINVAL);
 			help();
-			goto exit;
 		}
 	}
+}
 
-	ret = spi_init(&spi, spi_bus);
+int main(int argc, char *argv[])
+{
+	spi_t *spi = NULL;
+	int ret = 0;
+
+	parse_opts(argc, argv);
+
+	ret = spi_init(&spi, device);
 	if (ret < 0) {
-		fprintf(stderr, "spi_init() error! %d\n", ret);
 		spi_close(spi);
-		goto exit;
+		pabort("spi_init() error!");
 	}
 
 	fprintf(stdout, "Transmit data: 0x%x\n", tx_buf[0]);
 
 	ret = spi_write_read(spi, tx_buf, rx_buf, 1);
 	if (ret < 0) {
-		fprintf(stderr, "spi_write_read() error! %d\n", ret);
 		spi_close(spi);
-		goto exit;
+		pabort("spi_write_read() error!");
 	}
 
 	fprintf(stdout, "Receive data: 0x%x\n", rx_buf[0]);
-	spi_close(spi);
 
-	/* TODO: Need a good solution to end programe and free pointer */
-	exit:
-		return 0;
+	spi_close(spi);
 
 	return 0;
 }

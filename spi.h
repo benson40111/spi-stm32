@@ -8,6 +8,9 @@
  *
  */
 
+#ifndef __SPI_H
+#define __SPI_H
+
 #include <errno.h>
 #include <linux/spi/spidev.h>
 
@@ -56,3 +59,5 @@ int spi_init(spi_t **self, const uint8_t *device);
 void spi_close(spi_t *self);
 int spi_write_read(spi_t *self, const uint8_t *tx_buf, uint8_t *rx_buf,
   const size_t len);
+
+#endif

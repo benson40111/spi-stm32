@@ -35,7 +35,6 @@ spi_init(spi_t **self, const uint8_t *device)
     if (self == NULL) {
         fprintf(stderr, "spi_init(): malloc: unable to allocate memory!"
             "%d\n", -ENOMEM);
-        free(*self);
         return -SPI_INIT_ERROR;
     }
 
@@ -44,14 +43,12 @@ spi_init(spi_t **self, const uint8_t *device)
     (*self)->fd = open(device, O_RDWR);
     if ((*self)->fd < 0) {
         fprintf(stderr, "spi_init(): falied to open the bus\n");
-        free(*self);
         return -SPI_FILE_OPEN_ERROR;
     }
 
     if (ioctl((*self)->fd, SPI_IOC_RD_LSB_FIRST, &(*self)->lsb) < 0) {
         fprintf(stderr, "spi_init(): can't get 'LSB' first\n");
         spi_close(*self);
-        free(*self);
         return -SPI_LSB_FIRST_ERROR;
     }
 
@@ -60,14 +57,12 @@ spi_init(spi_t **self, const uint8_t *device)
     if (ioctl((*self)->fd, SPI_IOC_WR_MODE, &(*self)->mode) < 0) {
         fprintf(stderr, "spi_init(): can't set mode first\n");
         spi_close(*self);
-        free(*self);
         return -SPI_SET_MODE_ERROR;
     }
 
     if (ioctl((*self)->fd, SPI_IOC_RD_MODE, &(*self)->mode) < 0) {
         fprintf(stderr, "spi_init(): can't get mode first\n");
         spi_close(*self);
-        free(*self);
         return -SPI_GET_MODE_ERROR;
     }
 
@@ -75,7 +70,6 @@ spi_init(spi_t **self, const uint8_t *device)
     if (ioctl((*self)->fd, SPI_IOC_WR_BITS_PER_WORD, &(*self)->bits) < 0) {
         fprintf(stderr, "spi_init(): can't set bits per word\n");
         spi_close(*self);
-        free(*self);
         return -SPI_SET_BITS_PER_WORD_ERROR;
     }
 
@@ -88,14 +82,12 @@ spi_init(spi_t **self, const uint8_t *device)
     if (ioctl((*self)->fd, SPI_IOC_WR_MAX_SPEED_HZ, &(*self)->speed) < 0) {
         fprintf(stderr, "spi_init(): can't set max speed\n");
         spi_close(*self);
-        free(*self);
         return -SPI_SET_SPEED_ERROR;
     }
 
     if (ioctl((*self)->fd, SPI_IOC_RD_MAX_SPEED_HZ, &(*self)->speed) < 0) {
         fprintf(stderr, "spi_init(): can't get max speed\n");
         spi_close(*self);
-        free(*self);
         return -SPI_GET_SPEED_ERROR;
     }
 
@@ -110,6 +102,7 @@ spi_init(spi_t **self, const uint8_t *device)
 void
 spi_close(spi_t *self)
 {
+    free(self);
     close(self->fd);
 }
 
@@ -137,8 +130,6 @@ spi_write_read(spi_t *self, const uint8_t *tx_buf, uint8_t *rx_buf,
                 ret);
         return -SPI_WRITE_ERROR;
     }
-
-    sleep(1);
 
     self->xfer.rx_buf = (uint64_t)rx_buf;
     ret = ioctl(self->fd, SPI_IOC_MESSAGE(1), &self->xfer);
